@@ -1,16 +1,3 @@
-/*
- * Copyright (c) 2016-2020 Moddable Tech, Inc.
- *
- *   This file is part of the Moddable SDK.
- * 
- *   This work is licensed under the
- *       Creative Commons Attribution 4.0 International License.
- *   To view a copy of this license, visit
- *       <http://creativecommons.org/licenses/by/4.0>
- *   or send a letter to Creative Commons, PO Box 1866,
- *   Mountain View, CA 94042, USA.
- *
- */
 
 import Poco from "commodetto/Poco";
 import Resource from "Resource";
@@ -23,18 +10,11 @@ import Analog from "pins/analog";
 import WiFi from "wifi";
 import {Request} from "http";
 
-//connect wifi
-/*WiFi.connect({
-        ssid: "MMG2",
-        password: "PracticalElectronicsForInventors"
-    }
-);*/
-
 let dcMotorState = 1; // 1 = high motor is off
 
 let wifiMonitor = new WiFi({
         ssid: "MMG2",
-        password: "PracticalElectronicsForInventors"
+        password: "*****"
     },
     function(msg) {
         switch (msg) {
@@ -114,12 +94,15 @@ drawSector(poco, black, grey, 160, 241, 78, 79); // 6
 // draw static text
 let wtLvText = "Water Level";
 let voltageText = "Battery Voltage";
+let acText = "AC Motor"
+let dcText = "DC Motor"
+let offText = "OFF"
 poco.drawText(wtLvText, regular16, black, 35, 10); // x, y
 poco.drawText(voltageText, regular16, black, 20, 90); // x, y
-
-
-// draw text
-//poco.drawText(textHi, bold28, black, 20, 20);
+poco.drawText(acText, regular16, black, 200, 10); // x, y
+poco.drawText(dcText, regular16, black, 200, 90); // x, y
+let offTextWidth = poco.getTextWidth(offText, bold28);
+poco.drawText(offText, bold28, black, 240 - (offTextWidth / 2), 115); // x, y
 poco.end();
 
 function drawSector(poco, lineColor, color, xOrigin, yOrigin, width, height) {
@@ -134,58 +117,6 @@ let monitor = new Monitor({
     mode: Digital.InputPullDown,
     edge: Monitor.Rising
 });
-/*let button = new Digital({
-    pin: 16,
-    mode: Digital.InputPullDown
-});
-
-let monitor19 = new Monitor({
-    pin: 19,
-    mode: Digital.InputPullUp,
-    edge: Monitor.Rising
-});*/
-/*let monitor3 = new Monitor({
-    pin: 3,
-    mode: Digital.InputPullUp,
-    edge: Monitor.Rising
-});*/
-/*monitor19.onChanged = function() {
-    let value3 = Digital.read(3);
-    trace(`M19 value21=${value3}\n`)
-}*/
-/*
-monitor3.onChanged = function() {
-    let value19 = Digital.read(19);
-    trace(`M21 value19=${value19}\n`)
-}
-*/
-
-/*let rt1 = new Digital({
-    pin: 19,
-    mode: Digital.InputPullDown
-});
-let rt2 = new Digital({
-    pin: 21,
-    mode: Digital.InputPullDown
-});
-let previous1 = 1;
-let previous2 = 1;
-trace(`---\n`);
-Timer.repeat(id => {
-    let value1 = rt1.read();
-    let value2 = rt2.read();
-    if (value1 !== previous1 || value2 !== previous2) {
-        /!*if (value2 === value1){
-            trace(`<---\n`);
-        } else {
-            trace(`--->\n`);
-        }*!/
-        trace(`previous1=${previous1} previous2=${previous2}\n`)
-        trace(`value1=${value1} value2=${value2}\n`)
-        previous1 = value1;
-        previous2 = value2;
-    }
-}, 100);*/
 
 let lastState;
 let currentState;
@@ -203,15 +134,6 @@ const pinB = new Digital(
         mode: Digital.InputPullUp
     }
 )
-
-/*const pinCurrent = new Monitor(
-    {
-        pin: 22,
-        //mode: Digital.InputPullUp,
-        mode: Digital.InputPullDown,
-        edge: Monitor.Rising | Monitor.Failling
-    }
-)*/
 
 const dcMotor = new Monitor(
     {
@@ -248,14 +170,16 @@ pinA.onChanged = function() {
     rotationDirection();
 }
 
-/*pinCurrent.onChanged = function() {
-    trace(`pinA: ${pinCurrent.read()}\n`);
-}*/
-
 dcMotor.onChanged = function() {
     dcMotorState = dcMotor.read();
     trace(`dcMotor: ${dcMotorState}\n`);
     pinLed.write(!dcMotorState);
+    // 1 = off, 0 = on
+    if (dcMotorState) {
+        redrawText('ON', 'OFF', bold28, black, grey, 240, 115);
+    } else {
+        redrawText('OFF', 'ON', bold28, red, grey, 240, 115);
+    }
 }
 ////////////////////////////////////////
 // uses 100R resistor with gauge to form voltage divider
@@ -264,32 +188,41 @@ dcMotor.onChanged = function() {
 
 let gaugePrev = 0;
 let voltagePrev = 0;
+let currentPrev = 0;
 Timer.repeat((id) => {
-
+    //read and display water level
     let gauge = Analog.read(3); //ADC1_3 (VN) pin
-    if (gaugePrev !== gauge) {
-        trace(`gauge:${gauge}\n`);
-        //clearText(gaugePrev, regular16, grey, 40, 30)
+    if (Math.abs(gaugePrev - gauge) > 10) {
         let gaugeLevel = gageToLevel(gauge);
-        redrawText(gageToLevel(gaugePrev), gaugeLevel, bold28, waterLevelColor(gaugeLevel), grey, 55, 35);
+        redrawText(gageToLevel(gaugePrev), gaugeLevel, bold28, waterLevelColor(gaugeLevel), grey, 80, 35);
         gaugePrev = gauge;
     }
-
-    let current = Analog.read(6); // norlmal 44, curren detected
-    trace(`current:${current}\n`);
+    //read and display backup battery voltage
     let voltage = Analog.read(0) / 310 * 5; // 1023 resolution * 3.3 voltage ref = 310, 5 is voltage divider ratio
     voltage = Math.round(voltage * 100) / 100;
     // check if voltage changes more than 0.08 volts to remove reading fluctuations
     if (Math.abs(voltagePrev - voltage) > 0.08) {
         let voltageTextColor = voltage < 11 ? red : black;
-        redrawText(voltagePrev + 'V', voltage + 'V', bold28, voltageTextColor, grey, 35, 115);
+        redrawText(voltagePrev + 'V', voltage + 'V', bold28, voltageTextColor, grey, 80, 115);
         voltagePrev = voltage;
+    }
+    //read ac current sensor on AC motor line and display ac motor status
+    let current = Analog.read(6); // normal 44, curren detected
+    if (Math.abs(currentPrev - current) > 20) {
+        trace(`current:${current}\n`);
+        if (current > 60) {
+            redrawText('OFF', 'ON', bold28, red, grey, 240, 35);
+        } else {
+            redrawText('ON', 'OFF', bold28, black, grey, 240, 35);
+        }
+        currentPrev = current;
     }
 
 }, 1000);
 
 /**
- * Redraws text by firs clearing old text and drawing new text, clears area based on which text (old or new) has larger width
+ * Redraws text by firs clearing old text and drawing new text, clears area based on which text (old or new) has larger width,
+ * calculates and draws text in the center depending on text width.
  * @param oldText old text
  * @param newText new text
  * @param font text font
@@ -302,9 +235,12 @@ function redrawText(oldText, newText, font, color, backgroundColor, xOrigin, yOr
     let oldTxtWidth = poco.getTextWidth(oldText, font);
     let newTxtWidth = poco.getTextWidth(newText, font);
     let textWidth = oldTxtWidth > newTxtWidth ? oldTxtWidth : newTxtWidth;
-    poco.begin(xOrigin, yOrigin, textWidth + 5, font.height);
-    poco.fillRectangle(backgroundColor, xOrigin, yOrigin, textWidth + 5, font.height);
-    poco.drawText(newText, font, color, xOrigin, yOrigin); // x, y
+    let xCalculatedOld = Math.floor(xOrigin - (oldTxtWidth / 2));
+    let xCalculatedNew = Math.floor(xOrigin - (newTxtWidth / 2));
+    let xCalculated = xCalculatedOld < xCalculatedNew ? xCalculatedOld : xCalculatedNew;
+    poco.begin(xCalculated, yOrigin, textWidth + 5, font.height);
+    poco.fillRectangle(backgroundColor, xCalculated, yOrigin, textWidth + 5, font.height);
+    poco.drawText(newText, font, color, xCalculatedNew, yOrigin); // x, y
     poco.end();
 }
 // removes old text from the screan
