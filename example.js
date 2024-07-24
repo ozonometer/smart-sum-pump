@@ -332,29 +332,3 @@ Timer.repeat(id => {
 function printText() {
 
 }
-
-
-/*let frame = 3;
-let margin = 2;
-let x = 10, y = 60;
-let tickerWidth = 200;
-let width = tickerWidth + frame * 2 + margin * 2;
-let height = regular16.height + frame * 2 + margin * 2;
-let text = "JavaScript is one of the world's most widely used programming languages.";
-let textWidth = poco.getTextWidth(text, regular16);
-let dx = tickerWidth;
-Timer.repeat(function() {
-	poco.begin(x, y, width, height);
-	poco.fillRectangle(black, x, y, width, height);
-	poco.fillRectangle(yellow, x + frame, y + frame, tickerWidth + margin * 2, regular16.height + margin * 2);
-
-	poco.clip(x + frame + margin, y + frame + margin, tickerWidth, regular16.height);
-	poco.drawText(text, regular16, black, x + frame + margin + dx, y + frame);
-	poco.clip();
-
-	dx -= 2;
-	if (dx < -textWidth)
-		dx = tickerWidth;
-	poco.end();
-}, 16);
- */
