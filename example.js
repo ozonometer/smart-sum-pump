@@ -19,19 +19,20 @@ let wifiMonitor = new WiFi({
     function(msg) {
         switch (msg) {
             case WiFi.gotIP:
-                trace("network ready\n");
+                addLog("Network Ready\n");
                 break;
             case WiFi.connected:
-                trace("connected\n");
-                getCurrentTime();
+                addLog("Wi-Fi Connected\n");
+                //getCurrentTime();
                 break;
             case WiFi.disconnected:
-                trace("connection lost\n");
+                addLog("Wi-Fi Connection Lost\n");
                 break;
         }
     }
 );
 
+/*
 function getCurrentTime() {
     let request = new Request({
         host: "worldtimeapi.org",
@@ -47,6 +48,9 @@ function getCurrentTime() {
         }
     }
 }
+*/
+
+let logArr = [];
 
 //use poco
 let poco = new Poco(screen, {displayListLength: 4000, rotation: config.rotation});
@@ -72,13 +76,35 @@ poco.begin();
 // fill screen background
 poco.fillRectangle(grey, 0, 0, poco.width, poco.height);
 
-// limits text drawn by screen size
+/**
+ * Adds message to event log (size 3) and redraws log window
+ * @param message log message
+ */
+function addLog(message) {
+    if (logArr.length >= 3) {
+        logArr.shift();
+    }
+    logArr.push(message);
+    let xPosition = 5;
+    let yPosition = 168
+    poco.begin(xPosition, yPosition, 316, 76);
+    poco.fillRectangle(grey, xPosition, yPosition, 316, 76);
+    let rowPosition = yPosition - regular16.height;
+    for (let i = 0; i < logArr.length; i++) {
+        rowPosition = rowPosition + regular16.height;
+        poco.drawText(logArr[i], regular16, black, xPosition, rowPosition); // x, y
+    }
+    poco.end();
+}
+
+// draw screen grid
 drawSector(poco, black, grey, 0, 0, 159, 79); // 1
 drawSector(poco, black, grey, 0, 160, 159, 79); // 2
 drawSector(poco, black, grey, 80, 0, 159, 79); // 3
 drawSector(poco, black, grey, 80, 160, 159, 79); // 4
-drawSector(poco, black, grey, 160, 0, 240, 79); // 5
-drawSector(poco, black, grey, 160, 241, 78, 79); // 6
+drawSector(poco, black, grey, 160, 0, 319, 79); // 5
+//drawSector(poco, black, grey, 160, 0, 240, 79); // 5
+//drawSector(poco, black, grey, 160, 241, 78, 79); // 6
 // draw static text
 let wtLvText = "Water Level";
 let voltageText = "Battery Voltage";
@@ -92,6 +118,8 @@ poco.drawText(dcText, regular16, black, 200, 90); // x, y
 let offTextWidth = poco.getTextWidth(offText, bold28);
 poco.drawText(offText, bold28, black, 240 - (offTextWidth / 2), 115); // x, y
 poco.end();
+let currentDate = new Date();
+addLog(`Date: ${currentDate.toLocaleString()}`);
 
 function drawSector(poco, lineColor, color, xOrigin, yOrigin, width, height) {
     poco.fillRectangle(lineColor, yOrigin, xOrigin, width + 1, height + 1);
@@ -138,25 +166,6 @@ const pinLed = new Digital(
         mode: Digital.Output
     }
 )
-trace("pin A\n");
-lastState = pinA.read();
-trace(`pinA: ${lastState}\n`);
-
-function rotationDirection() {
-    currentState = pinA.read();
-    if (currentState !== lastState) {
-        if (pinB.read() !== currentState) {
-            trace("Clockwise rotation\n");
-        } else {
-            trace("Conter-clockwise rotation\n");
-        }
-    }
-    lastState = currentState;
-}
-
-pinA.onChanged = function() {
-    rotationDirection();
-}
 
 dcMotor.onChanged = function() {
     dcMotorState = dcMotor.read();
@@ -165,8 +174,10 @@ dcMotor.onChanged = function() {
     // 1 = off, 0 = on
     if (dcMotorState) {
         redrawText('ON', 'OFF', bold28, black, grey, 240, 115);
+        addLog(`DC Motor: OFF`);
     } else {
         redrawText('OFF', 'ON', bold28, red, grey, 240, 115);
+        addLog(`DC Motor: ON`);
     }
 }
 ////////////////////////////////////////
@@ -177,10 +188,13 @@ let currentPrev = 0;
 Timer.repeat((id) => {
     //read and display water level
     let gauge = Analog.read(3); //ADC1_3 (VN) pin
-    if (Math.abs(gaugePrev - gauge) > 10) {
+    if (Math.abs(gaugePrev - gauge) > 15) {
+        trace(`water diff: ${Math.abs(gaugePrev - gauge)}\n`);
+        trace(`water : ${gauge}\n`);
         let gaugeLevel = gageToLevel(gauge);
         redrawText(gageToLevel(gaugePrev), gaugeLevel, bold28, waterLevelColor(gaugeLevel), grey, 80, 35);
         gaugePrev = gauge;
+        addLog(`Water Level: ${gaugeLevel}`);
     }
     //read and display backup battery voltage
     let voltage = Analog.read(0) / 310 * 5; // 1023 resolution * 3.3 voltage ref = 310, 5 is voltage divider ratio
@@ -190,15 +204,18 @@ Timer.repeat((id) => {
         let voltageTextColor = voltage < 11 ? red : black;
         redrawText(voltagePrev + 'V', voltage + 'V', bold28, voltageTextColor, grey, 80, 115);
         voltagePrev = voltage;
+        addLog(`Battery: ${voltage}V`);
     }
     //read ac current sensor on AC motor line and display ac motor status
     let current = Analog.read(6); // normal 44, curren detected
     if (Math.abs(currentPrev - current) > 20) {
-        trace(`current:${current}\n`);
+        trace(`current: ${current}\n`);
         if (current > 60) {
             redrawText('OFF', 'ON', bold28, red, grey, 240, 35);
+            addLog(`AC Motor: ON`);
         } else {
             redrawText('ON', 'OFF', bold28, black, grey, 240, 35);
+            addLog(`AC Motor: OFF`);
         }
         currentPrev = current;
     }
@@ -271,8 +288,25 @@ if (level === '80%' || level === '100%') {
     }
 }
 
+//read rotary encoder rotation
+lastState = pinA.read();
+function rotationDirection() {
+    currentState = pinA.read();
+    if (currentState !== lastState) {
+        if (pinB.read() !== currentState) {
+            trace("Clockwise rotation\n");
+        } else {
+            trace("Conter-clockwise rotation\n");
+        }
+    }
+    lastState = currentState;
+}
 
-////////////////////////////////////////////////////
+pinA.onChanged = function() {
+    rotationDirection();
+}
+
+//read rotary encoder button press
 let x2 = 0, y2 = 150;
 let widthM = 78
 let heightM = regular16.height;
@@ -284,36 +318,6 @@ monitor.onChanged = function() {
     widthM = poco.getTextWidth(btTextM, regular16); // get new text width
     poco.drawText(btTextM, regular16, black, x2, y2); //print new value
     trace(`button pressed: ${++count0}\n`);
-    getCurrentTime();
+    //getCurrentTime();
     poco.end();
-}
-
-let previous = 1;
-let count = 0;
-let xx = 0, yy = 100;
-let widthC = 78
-    let heightC = regular16.height;
-Timer.repeat(id => {
-    poco.begin(xx, yy, widthC, heightC); // redraw in specific area
-    //poco.begin();
-    let value = Digital.read(0);
-    if (value !== previous) {
-        if (value) {
-            poco.fillRectangle(grey, xx, yy, widthC, heightC); //clear previous value
-            count = count +1;
-            let btText = `Pressed: ${count}`;
-            widthC = poco.getTextWidth(btText, regular16); // get new text width
-            //poco.fillRectangle(red, 20, 20, widthBtText, bold28.height);
-            trace(`button pressed: ${count}\n`);
-            trace(`text width: ${widthC}\n`);
-            trace(`text hight: ${heightC}\n`);
-            poco.drawText(btText, regular16, black, xx, yy); //print new value
-        }
-        previous = value;
-    }
-    poco.end();
-}, 100);
-
-function printText() {
-
 }
