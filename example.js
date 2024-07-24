@@ -189,8 +189,6 @@ Timer.repeat((id) => {
     //read and display water level
     let gauge = Analog.read(3); //ADC1_3 (VN) pin
     if (Math.abs(gaugePrev - gauge) > 15) {
-        trace(`water diff: ${Math.abs(gaugePrev - gauge)}\n`);
-        trace(`water : ${gauge}\n`);
         let gaugeLevel = gageToLevel(gauge);
         redrawText(gageToLevel(gaugePrev), gaugeLevel, bold28, waterLevelColor(gaugeLevel), grey, 80, 35);
         gaugePrev = gauge;
