@@ -71,20 +71,8 @@ let bold28 = parseBMF(new Resource("OpenSans-Semibold-28.bf4"));
 poco.begin();
 // fill screen background
 poco.fillRectangle(grey, 0, 0, poco.width, poco.height);
-// draw red rectangle (color, x start, y start, x length, y height)
-//poco.fillRectangle(red, 20, 20, 40, 30);
 
-let textHi = "HII3";
-// get text width
-let widthText = poco.getTextWidth(textHi, bold28);
-// draw rectangle to simulate selection
-poco.fillRectangle(black, 18, 18, widthText + 3, bold28.height + 3);
-// use text width and font height to draw rectangle
-poco.fillRectangle(red, 20, 20, widthText, bold28.height);
-// draw text
-//poco.drawText(textHi, bold28, black, 20, 20);
 // limits text drawn by screen size
-//poco.drawText(textHi, bold28, black, 20, 20, poco.width);
 drawSector(poco, black, grey, 0, 0, 159, 79); // 1
 drawSector(poco, black, grey, 0, 160, 159, 79); // 2
 drawSector(poco, black, grey, 80, 0, 159, 79); // 3
@@ -183,9 +171,6 @@ dcMotor.onChanged = function() {
 }
 ////////////////////////////////////////
 // uses 100R resistor with gauge to form voltage divider
-// get text width
-//let widthWtLvText= poco.getTextWidth(wtLvText, bold28);
-
 let gaugePrev = 0;
 let voltagePrev = 0;
 let currentPrev = 0;
